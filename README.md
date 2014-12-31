@@ -23,7 +23,7 @@ Installation
 
 The script should be placed in a directory accessible by the PATH variable. For
 example, it can be placed in your ~/bin directory as it does not require special
-rights to run.
+rights to run. Don’t forget to make it runnable ! (chmod 755…)
 
 AfterShot Pro configuration
 ---------------------------
