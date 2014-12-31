@@ -1,0 +1,90 @@
+#!/bin/bash
+ARGYLLREF="/usr/share/color/argyll/ref"
+CHTFILE="$ARGYLLREF/ColorChecker.cht"
+CIEFILE="$ARGYLLREF/ColorChecker.cie"
+
+function split_path() {
+    local fullfile, filename
+
+    fullfile="$1"
+    filename=$(basename "$fullfile")
+
+    # filepath|basefile|extension
+    printf '%s|%s|%s' $(dirname "$fullfile") "${filename%.*}" "${filename##*.}"
+}
+
+function mime_type() {
+    file -b --mime-type "$1"
+}
+
+function assert {
+    local message="$1"
+    shift
+    "$@"
+    [ $? -eq 0 ] && return 0
+    zenity --error --text="$message"
+    exit 1
+}
+
+function get_profile_info() {
+    zenity --forms \
+           --title="ColorChecker profile generator" \
+           --text="Profile for $1" \
+           --add-entry="Camera name" \
+           --add-entry="Description" \
+           --add-entry="Copyright" \
+           --add-entry="Output name"
+}
+
+# Check environment
+assert "Argyll reference files not found"          test -d "$ARGYLLREF"
+assert "ColorChecker chart reference not found"    test -f "$CHTFILE"
+assert "ColorChecker CIE reference file not found" test -f "$CIEFILE"
+assert "Scanin utility not found"                  which scanin
+assert "Colprof utility not found"                 which colprof
+assert "Identify utility not found"                which identify
+assert "GCM Viewer utility not found"              which gcm-viewer
+
+# Check parameters
+chart="$1"
+assert "TIFF file not found" test -f "$chart"
+assert "Not a TIFF file"     test $(mime_type "$chart") == "image/tiff"
+
+IFS='|' read chartpath chartbase chartext ignore < <(split_path "$chart")
+
+width=$(identify -ping -format '%w' "$chart")
+height=$(identify -ping -format '%h' "$chart")
+
+if [[ width -lt height ]]
+then
+    # Chart presented vertically (portrait, 4×6 patches)
+    marks="-F0,$height,0,0,$width,0,$width,$height"
+else
+    # Chart presented horizontalle (landscape, 6×4 patches)
+    marks="-F0,0,$width,0,$width,$height,0,$height"
+fi
+
+# Read user entries
+IFS='|' read model desc copyright output ignore < <(get_profile_info "$chart")
+
+# Every field is mandatory
+assert "Model empty"       test "$model"     != ""
+assert "Description empty" test "$desc"      != ""
+assert "Copyright empty"   test "$copyright" != ""
+assert "Output empty"      test "$output"    != ""
+
+# Extract the patches from the TIFF file
+scanin "$marks" "$chart" "$CHTFILE" "$CIEFILE"
+
+assert "Unable to locate patches" test $? -eq 0
+
+# Create a color profile from what we got and what we should have
+colprof "-M$model" "-D$desc" "-C$copyright" -qu -am -u "$chartpath/$chartbase"
+
+assert "Unable to generate color profile" test $? -eq 0
+
+# Save the color profile and display it to the user to be sure it is correct
+outputprofile="$chartpath/$output.icc"
+mv -- "$chartpath/$chartbase.icc" "$outputprofile"
+gcm-viewer --file="$outputprofile"
+
