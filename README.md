@@ -22,7 +22,7 @@ Installation
 ------------
 
 The script should be placed in a directory accessible by the PATH variable. For
-example, it can be placed in you ~/bin directory as it does not require special
+example, it can be placed in your ~/bin directory as it does not require special
 rights to run.
 
 AfterShot Pro configuration
@@ -124,6 +124,13 @@ it so you can check if your newly generated profile seems correct.
 ![CIE 1931 diagram](img/gcm-tab2.png)
 
 ![Curve](img/gcm-tab3.png)
+
+### Using the profile
+
+Now the profile has been generated, go back to the Color Management in
+AfterShot Pro (color tab) and add it to your "Custom input profiles".
+
+That’s it !
 
 Notes
 -----
